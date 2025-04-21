@@ -1,0 +1,98 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: My first playwright
+- Location: D:\PlayWrightAutomation\tests\client-app.spec.js:3:1
+
+# Error details
+
+```
+Error: locator.waitFor: Error: strict mode violation: locator('div li') resolved to 4 elements:
+    1) <li _ngcontent-juk-c36="" class="items even ng-star-inserted">…</li> aka getByRole('listitem').filter({ hasText: '#67a8dde5c0d3e6622a297cc8ZARA' })
+    2) <li class="totalRow" _ngcontent-juk-c36="">…</li> aka getByText('Subtotal$')
+    3) <li class="totalRow" _ngcontent-juk-c36="">…</li> aka getByText('Total$31500', { exact: true })
+    4) <li class="totalRow" _ngcontent-juk-c36="">…</li> aka getByRole('listitem').filter({ hasText: 'Checkout' })
+
+Call log:
+  - waiting for locator('div li') to be visible
+
+    at D:\PlayWrightAutomation\tests\client-app.spec.js:27:34
+```
+
+# Page snapshot
+
+```yaml
+- navigation:
+  - link "Automation Automation Practice":
+    - heading "Automation" [level=3]
+    - paragraph: Automation Practice
+  - list:
+    - listitem:
+      - button " HOME"
+    - listitem
+    - listitem:
+      - button " ORDERS"
+    - listitem:
+      - button " Cart 1"
+    - listitem:
+      - button "Sign Out"
+- heading "My Cart" [level=1]
+- button "Continue Shopping❯"
+- list:
+  - listitem:
+    - paragraph: "#67a8dde5c0d3e6622a297cc8"
+    - heading "ZARA COAT 3" [level=3]
+    - paragraph: MRP $ 31500
+    - paragraph: In Stock
+    - paragraph: $ 31500
+    - button "Buy Now❯"
+    - button "❯"
+- list:
+  - listitem: Subtotal $31500
+  - listitem: Total $31500
+  - listitem:
+    - button "Checkout❯"
+- alert "Product Added To Cart"
+```
+
+# Test source
+
+```ts
+   1 | const {test, expect} = require('@playwright/test')
+   2 |
+   3 | test('My first playwright',async ({page}) => {
+   4 |     const products = page.locator('.card-body');
+   5 |     const productName = 'ZARA COAT 3'
+   6 |     const userName = page.locator('#userEmail');
+   7 |     const userPassword = page.locator('#userPassword');
+   8 |     const signIn = page.locator('#login');
+   9 |     const cardTitles = page.locator('.card-body b');
+  10 |     await page.goto("https://rahulshettyacademy.com/client/");
+  11 |     await userName.fill('anilgadge@yopmail.com');
+  12 |     await userPassword.fill('Admin@123');
+  13 |     await signIn.click();
+  14 |     //waitfor = used for single element
+  15 |     //await cardTitles.first().waitFor();
+  16 |     await page.waitForLoadState('networkidle');// wait until all n/w calls has been done..!!
+  17 |     const allTitles = await cardTitles.allTextContents();
+  18 |     console.log(allTitles);
+  19 |     const count = await products.count();
+  20 |     for(let i=0; i<count; ++i){
+  21 |         if (await products.nth(i).locator("b").textContent() === productName){
+  22 |             await products.nth(i).locator("text= Add To Cart").click();
+  23 |             break;
+  24 |         }
+  25 |     }
+  26 |     await page.locator("[routerlink*=cart]").click();
+> 27 |     await page.locator("div li").waitFor();
+     |                                  ^ Error: locator.waitFor: Error: strict mode violation: locator('div li') resolved to 4 elements:
+  28 |     const bool = page.locator("h3:has-text('ZARA COAT 3')").isVisible();
+  29 |     expect(bool).toBeTruthy();
+  30 | });
+  31 |
+```

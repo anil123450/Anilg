@@ -1,0 +1,195 @@
+describe("Member Dashboard Savings Options API", () => {
+    let apiBaseUrl;
+    let getSavingOptionsUrl;
+    let postSavingOptionDetailsUrl;
+    let userList;
+    let userAgentHeader;
+    const clients = ["proact", "truerx"];
+
+    beforeEach(() => {
+        cy.getEnvConfig().then((envConfig) => {
+            apiBaseUrl = envConfig.apiUrl;
+            userAgentHeader = envConfig.userAgent;
+            cy.log("API Base URL: ", apiBaseUrl);
+            cy.printOnTerminal(`API Base URL: ${apiBaseUrl}`);
+            getSavingOptionsUrl = `${apiBaseUrl}usersavings/v1/saving-options`;
+            postSavingOptionDetailsUrl = `${apiBaseUrl}usersavings/v1/saving-option-details`;
+        });
+        cy.getUsers().then((userData) => {
+            userList = userData;
+        });
+    });
+
+    const getExpectedResponseData = (client, type) => {
+        return cy.readFile(`cypress/fixtures/expectedResponses/${client}_${type}.json`);
+    };
+
+    const fetchMemberSavingOptions = (token) => {
+        return cy.request({
+            method: "GET",
+            url: getSavingOptionsUrl,
+            headers: {
+                "User-Agent": userAgentHeader,
+                Authorization: `Bearer ${token}`,
+            },
+            failOnStatusCode: false,
+        });
+    };
+
+    const fetchSavingOptionDetails = (token, claimId, savingsOptionType) => {
+        return cy.request({
+            method: "POST",
+            url: postSavingOptionDetailsUrl,
+            body: {
+                claimId: claimId,
+                savingsOptionType: savingsOptionType,
+            },
+            headers: {
+                "User-Agent": userAgentHeader,
+                Authorization: `Bearer ${token}`,
+            },
+            failOnStatusCode: false,
+        });
+    };
+
+    clients.forEach((client) => {
+        it(`SVG-TC-293 - Verify Member Dashboard Savings Options API with Valid Savings Data for ${client}`, () => {
+            cy.wrap(userList).then((users) => {
+                const validSavingOptionUser = users.find((user) => user.client === client && user.hasSavings);
+                cy.getAcessToken(validSavingOptionUser.username, validSavingOptionUser.password).then((token) => {
+                    fetchMemberSavingOptions(token).then((response) => {
+                        expect(response.status).to.eq(200);
+                        expect(response.body).to.have.property("message", "Successfully fetched saving options for user");
+
+                        getExpectedResponseData(client, "savingOptions").then((expectedGetResponse) => {
+                            const expectedGetData = expectedGetResponse.data;
+                            response.body.data.options.forEach((actual, index) => {
+                                const expected = expectedGetData.options[index];
+                                Object.keys(expected).forEach((key) => {
+                                    if (!["claimId", "memberId", "ndc"].includes(key)) {
+                                        expect(actual[key], `Mismatch in field '${key}' at index ${index}`).to.deep.equal(expected[key]);
+                                    }
+                                });
+                            });
+                            expect(response.body.data.overallAnnualSavings).to.equal(expectedGetData.overallAnnualSavings);
+
+                            // Store claimId and savingOptionType for all options
+                            const optionsToStore = response.body.data.options.map((option) => ({
+                                claimId: option.claimId,
+                                savingsOptionType: option.savingsOptionType,
+                            }));
+
+                            cy.writeFile(`cypress/fixtures/claimData/${client}_allClaimData.json`, {
+                                options: optionsToStore,
+                            });
+                        });
+                    });
+                });
+            });
+        });
+
+        it(`SVG-TC-594 - Verify full POST response body for each saving option type - ${client}`, () => {
+            cy.readFile(`cypress/fixtures/claimData/${client}_allClaimData.json`).then((allClaimData) => {
+                if (allClaimData && allClaimData.options && allClaimData.options.length > 0) {
+                    cy.wrap(userList).then((users) => {
+                        const validSavingOptionUser = users.find((user) => user.client === client && user.hasSavings);
+                        cy.getAcessToken(validSavingOptionUser.username, validSavingOptionUser.password).then((token) => {
+                            allClaimData.options.forEach((option) => {
+                                fetchSavingOptionDetails(token, option.claimId, option.savingsOptionType).then((response) => {
+                                    expect(response.status).to.eq(200);
+
+                                    getExpectedResponseData(client, "savingOptionDetails").then((expectedPostResponse) => {
+                                        const expectedResponseForClaim = expectedPostResponse.data.options.find(
+                                            (expectedOption) => expectedOption.claimId === option.claimId
+                                        );
+
+                                        if (expectedResponseForClaim) {
+                                            const actualResponseOption = response.body.data.options.find(
+                                                (actualOption) => actualOption.scMemberNumber === response.body.data.options[0].scMemberNumber
+                                            );
+
+                                            expect(response.body.data.details).to.exist;
+                                            expect(response.body.data.options).to.exist;
+
+                                            expect(actualResponseOption, `Mismatch for claimId ${option.claimId}`).to.deep.equal(expectedResponseForClaim);
+                                            expect(response.body.data.details, `Mismatch in details for claimId ${option.claimId}`).to.deep.equal(expectedPostResponse.data.details);
+                                        } else {
+                                            cy.log(`No matching expected response found for claimId ${option.claimId}`);
+                                        }
+                                    });
+                                });
+                            });
+                        });
+                    } else {
+                        cy.log(`Skipping SVG-TC-594 for ${client} as there are no saving options.`);
+                    }
+                });
+            });
+        });
+
+        it(`SVG-TC-590 - Validate scMemberNumber in Savings Option Response for ${client}`, () => {
+            cy.readFile(`cypress/fixtures/claimData/${client}_claimData.json`).then((claimData) => {
+                if (claimData && claimData.options && claimData.options.length > 0) {
+                    cy.wrap(userList).then((users) => {
+                        const validSavingOptionUser = users.find((user) => user.client === client && user.hasSavings);
+                        cy.getAcessToken(validSavingOptionUser.username, validSavingOptionUser.password).then((token) => {
+                            claimData.options.forEach((option) => {
+                                fetchSavingOptionDetails(token, option.claimId, option.savingsOptionType).then((response) => {
+                                    expect(response.status).to.eq(200);
+                                    getExpectedResponseData(client, "savingOptionDetails").then((expectedPostResponse) => {
+                                        const expectedPostOption = expectedPostResponse.data.options.find((opt) => opt.claimId === option.claimId);
+                                        const actualPostOption = response.body.data.options.find((opt) => opt.claimId === option.claimId);
+                                        expect(actualPostOption.scMemberNumber, "Mismatch in scMemberNumber").to.equal(expectedPostOption.scMemberNumber);
+                                    });
+                                });
+                            });
+                        });
+                    });
+                } else {
+                    cy.log(`Skipping SVG-TC-590 for ${client} due to no claim data.`);
+                }
+            });
+        });
+
+        it(`SVG-TC-294 - Verify Member Dashboard Savings Options API with No Available Savings for ${client}`, () => {
+            cy.wrap(userList).should("exist").then((users) => {
+                const userWithoutSavings = users.find((user) => user.client === client && !user.hasSavings);
+                cy.getAcessToken(userWithoutSavings.username, userWithoutSavings.password).then((token) => {
+                    fetchMemberSavingOptions(token).then((response) => {
+                        expect(response.status).to.eq(200);
+                        expect(response.body).to.have.property("message", "No saving options found for user");
+                        expect(response.body.data).to.be.null;
+                    });
+                });
+            });
+        });
+
+        it(`SVG-TC-318 & 319 - Verify Estimated Yearly Savings Calculation for ${client}`, () => {
+            cy.wrap(userList).then((users) => {
+                const validSavingOptionUser = users.find((user) => user.client === client && user.hasSavings);
+                cy.getAcessToken(validSavingOptionUser.username, validSavingOptionUser.password).then((token) => {
+                    fetchMemberSavingOptions(token).then((response) => {
+                        expect(response.status).to.eq(200);
+
+                        getExpectedResponseData(client, "savingOptions").then((expectedGetResponse) => {
+                            const expectedGetData = expectedGetResponse.data;
+                            response.body.data.options.forEach((actual) => {
+                                const expected = expectedGetData.options.find((opt) =>
+                                    opt.drugName === actual.drugName &&
+                                    opt.savingsOptionType === actual.savingsOptionType &&
+                                    opt.giftCardValue === actual.giftCardValue
+                                );
+                                expect(expected, `Expected data for '${actual.drugName}' not found`).to.exist;
+
+                                const computedEstimatedSavings = expected.giftCardValue > 0
+                                    ? expected.annualPatientSavings + expected.giftCardValue
+                                    : expected.annualPatientSavings;
+                                expect(actual.estimatedYearlySavings, `Incorrect estimatedYearlySavings calculation for '${actual.drugName}'. Expected: ${computedEstimatedSavings}, Found: ${actual.estimatedYearlySavings}`).to.equal(computedEstimatedSavings);
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+});

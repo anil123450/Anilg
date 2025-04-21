@@ -1,0 +1,91 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: @Client App login
+- Location: D:\PlayWrightAutomation\tests\Webapi.spec.js:20:1
+
+# Error details
+
+```
+Error: locator.waitFor: Test timeout of 20000ms exceeded.
+Call log:
+  - waiting for locator('div li').first() to be visible
+
+    at D:\PlayWrightAutomation\tests\Webapi.spec.js:38:40
+```
+
+# Page snapshot
+
+```yaml
+- navigation:
+  - link "Automation Automation Practice":
+    - heading "Automation" [level=3]
+    - paragraph: Automation Practice
+  - list:
+    - listitem:
+      - button " HOME"
+    - listitem
+    - listitem:
+      - button " ORDERS"
+    - listitem:
+      - button " Cart"
+    - listitem:
+      - button "Sign Out"
+- heading "My Cart" [level=1]
+- button "Continue Shopping❯"
+- heading "No Products in Your Cart !" [level=1]
+```
+
+# Test source
+
+```ts
+   1 | const {test,expect,request} = require('@playwright/test');
+   2 | const loginPayload = {"userEmail":"anilgadge@yopmail.com","userPassword":"Admin@123"};
+   3 | let token;
+   4 |
+   5 | test.beforeAll(async() => 
+   6 |     {
+   7 |
+   8 |       const apiContext = await request.newContext();
+   9 |       const loginResponse = await apiContext.post("https://rahulshettyacademy.com/api/ecom/auth/login",{
+  10 |       data:loginPayload
+  11 |       })
+  12 |         expect(loginResponse.ok()).toBeTruthy();
+  13 |         const loginResponseJson = await loginResponse.json();
+  14 |         token = loginResponseJson.token;
+  15 |         console.log ('Token for Login:', token)
+  16 |
+  17 | });
+  18 |
+  19 |
+  20 | test('@Client App login', async ({ page }) => {
+  21 |   page.addInitScript(value =>{
+  22 |   window.localStorage.setItem('token', value);
+  23 |   },token);
+  24 |   const productName = 'zara coat 3';
+  25 |   await page.goto("https://rahulshettyacademy.com/client");
+  26 |   const products = page.locator(".card-body");
+  27 |   const titles = await page.locator(".card-body b").allTextContents();
+  28 |   console.log(titles);
+  29 |   const count = await products.count();
+  30 |   for (let i = 0; i < count; ++i) {
+  31 |      if (await products.nth(i).locator("b").textContent() === productName) {
+  32 |         await products.nth(i).locator("text= Add To Cart").click();
+  33 |         break;
+  34 |      }
+  35 |   }
+  36 |
+  37 |   await page.locator("[routerlink*='cart']").click();
+> 38 |   await page.locator("div li").first().waitFor();
+     |                                        ^ Error: locator.waitFor: Test timeout of 20000ms exceeded.
+  39 |    const bool = await page.locator("h3:has-text('zara coat 3')").isVisible();
+  40 |    expect(bool).toBeTruthy();
+  41 |    await page.locator("text=Checkout").click();
+  42 | });
+  43 |
+```
