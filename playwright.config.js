@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig, devices } from '@playwright/test';
 
+
 const config = ({
   testDir: './tests',
   /*Maximum time one test can run*/
@@ -9,7 +10,10 @@ const config = ({
   expect:{
     timeout: 5000, 
   },
-  reporter: [['html', { open: 'on-failure' }]], // Generates HTML report
+  reporter: [
+    ['list'],
+    ['allure-playwright', { outputFolder: 'allure-results', detail: true }],
+  ],
   use: {
     browserName:'chromium',
     headless:true,
