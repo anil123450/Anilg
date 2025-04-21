@@ -1,6 +1,6 @@
 const {test, expect} = require('@playwright/test')
 
-test('My first playwright',async ({browser}) => {
+test.only('My first playwright',async ({browser}) => {
     const context = await browser.newContext();
     const page = await context.newPage();
     const userName = page.locator('#username');
