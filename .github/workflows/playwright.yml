@@ -29,13 +29,3 @@ jobs:
 
     - name: Run Playwright tests with Allure reporter
       run: npx playwright test --reporter=allure-playwright
-
-    - name: Generate Allure report
-      run: allure generate allure-results --clean -o allure-report  # This step is optional if you want to generate the HTML locally
-
-    - name: Upload Allure Results as artifact
-      if: always()  # Upload even if tests fail
-      uses: actions/upload-artifact@v3
-      with:
-        name: allure-results
-        path: allure-results/  # This is where Allure results are stored after Playwright runs
