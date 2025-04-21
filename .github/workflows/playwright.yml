@@ -30,4 +30,7 @@ jobs:
     - name: Run Playwright tests with Allure reporter
       run: npx playwright test --reporter=allure-playwright
     - name: Debug - Check allure-results directory
-      run: ls -R allure-results/  
+      run: ls -R allure-results/
+    - name: Generate Allure report
+      run: allure generate allure-results --clean -o allure-report  # Optional step if you need to generate the HTML report
+    
