@@ -32,7 +32,8 @@ jobs:
         run: allure generate allure-results --clean -o allure-report
       - name: Upload Allure Results as artifact
         if: always()
-        uses: actions/upload-artifact@v3.1.3
+        uses: actions/upload-artifact@0d72af56c1c1b0672cbf3e003ae7aa4fae4d28f2  # v3.1.3 SHA
         with:
           name: allure-results
           path: allure-results/
+
